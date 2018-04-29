@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lab-5</title>
+</head>
+<body>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+<script>
+    var DATA_PATH = 'movies_lab5.json';
+	//chart dimensions
+    w = 1080
+    h = 720
+    margin = {top: 50, right: 50, bottom: 100, left: 50}
+    width = w - margin.left - margin.right
+    height = h - margin.top - margin.bottom
+
+    //create blank chart
+    svg = d3.select("body")
+        .append("div")
+        .attr("id", "container")
+        .style("min-width", "1440px")
+        .append("div")
+        .style("display", "inline-block")
+        .append("svg")
+        .attr("width", w)
+        .attr("height", h)
+        .attr("id", "chart")
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+    //create scales
+        x = d3.scaleBand()
+            // .domain()
+            .range([0, width])
+            .paddingInner(0.1)
+
+        y = d3.scaleLinear()
+            .domain([0, 10])
+            .range([height, 0])
+
+
+    //default transition settings
+    t = d3.transition()
+        .duration(2000)
+
+    var colorg = d3.scaleSequential(d3.interpolateBlues)
+        .domain([0, 1000000])
+
+    //Append a defs (for definition) element to your SVG
+    var defs = svg.append("defs");
+
+    //Append a linearGradient element to the defs and give it a unique id
+    var linearGradient = defs.append("linearGradient")
+    .attr("id", "linear-gradient");
+
+    //Horizontal gradient
+    linearGradient
+        .attr("x1", "0%")
+        .attr("y1", "0%")
+        .attr("x2", "100%")
+        .attr("y2", "0%");
+
+    //Set the color for the start (0%)
+    linearGradient.append("stop") 
+        .attr("offset", "0%")   
+        .attr("stop-color", colorg(100)); 
+
+    //Set the color for the end (100%)
+    linearGradient.append("stop") 
+        .attr("offset", "100%")   
+        .attr("stop-color", colorg(1000));
+
+    //infobox
+    infobox = d3.select("#container")
+        .append("div")
+        .style("display", "inline-block")
+        .style("background-color", "grey")
+        .style("padding", "3em")
+        .style("height", "10em")
+        .style("width", "10em")
+        .style("margin-bottom", "3em")
+        .style("vertical-align", "bottom")
+        .style("color", "white")
+        .style("line-height", "1.5em")
+        .text("Director, Avg Rating, Avg Production Budget, Movie Count")
+
+    function Bars(data) {
+        x.domain(data.map((d) => d.Director))
+        svg.select("g.x_axis")
+            .call(d3.axisBottom(x))
+            .selectAll("text")    
+            .style("text-anchor", "end")
+            .attr("dx", "-.7em")
+            .attr("dy", ".05em")
+            .attr("transform", "rotate(-55)");
+
+        
+        //JOIN to the bar
+        bars = svg.selectAll("rect.bar")
+            .data(data, (d) => d.Director)
+
+        //EXIT 
+        bars.exit()
+          .transition(t)
+            .attr("width", 0)  
+            .remove()
+
+        //UPDATE (elements to be updated)
+        bars
+          .transition(t) //new
+            .attr("y", (d) => y(d["Avg Rating"]))
+            .attr("height", (d) => height - y(d["Avg Rating"]))
+            .attr("x", (d) => x(d.Director))
+            .attr("width", x.bandwidth())
+
+
+        bars.enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("y", (d) => y(d["Avg Rating"]))
+            .attr("height", (d) => height - y(d["Avg Rating"]))
+            .attr("x", (d) => x(d.Director))
+            .attr("width", 0) 
+          .transition(t)    
+            .attr("fill", (d) => colorg(Math.round(d["Avg Budget"] / 30)))
+            .attr("width", x.bandwidth())
+
+        updateToolTip()
+
+    }
+
+    function updateToolTip() {
+     
+        svg.selectAll("rect.bar")
+            .on("mouseover", (d) => infobox.html(d.Director + "</br> Average IMDB Rating: " + Math.round(d["Avg Rating"]*100)/100 + "</br> Average Production Budget: $" + Math.round(d["Avg Budget"]) + "</br> Movie count: " + d["Count"]))
+            .on("mouseout", (d) => infobox.html("Director, Avg Rating, Avg Production Budget, Movie Count"))
+    }
+
+    function addScales() {
+        svg.append("g")
+            .attr("class", "x_axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x))
+
+
+        svg.append("g")
+            .attr("class", "y_axis")
+            .call(d3.axisLeft(y))
+    }
+
+    addScales()
+
+    svg.append("text")
+        .attr("x", (width / 2))
+        .attr("y", 0 - (margin.top / 2))
+        .attr("text-anchor", "middle")
+        .style("font-size", "24px")
+        .text("Average IMDB Rating by Director")
+
+//create sort option
+    var selectdiv = document.createElement('div');
+    var selectelem = document.createElement('select');
+    selectelem.id = 'selectelem';
+    var opt1 = document.createElement('option');
+    opt1.innerHTML = 'Director';
+    opt1.value = opt1.innerHTML
+    var opt2 = document.createElement('option');
+    opt2.innerHTML = 'Avg Rating';
+    opt2.value = opt2.innerHTML;
+    var opt3 = document.createElement('option');
+    opt3.innerHTML = 'Avg Budget';
+    opt3.value = opt3.innerHTML;
+    var opt4 = document.createElement('option');
+    opt4.innerHTML = 'Count';
+    opt4.value = opt4.innerHTML;
+
+    selectelem.appendChild(opt1);
+    selectelem.appendChild(opt2);
+    selectelem.appendChild(opt3);
+    selectelem.appendChild(opt4);
+
+
+//create button
+    var updatebutton = document.createElement('button');
+    updatebutton.innerHTML = 'Sort Bars';
+    updatebutton.addEventListener('click',sortBars);
+
+    a = document.body.appendChild(selectdiv);
+    a.appendChild(selectelem);
+    a.appendChild(updatebutton);
+
+
+//create filter option
+    var filterdiv = document.createElement('div');
+    var filterelem = document.createElement('select');
+    filterelem.id = 'filterelem';
+    var op0 = document.createElement('option');
+    op0.innerHTML = 'All Genre';
+    op0.value = op0.innerHTML;
+    var op1 = document.createElement('option');
+    op1.innerHTML = 'Comedy';
+    op1.value = op1.innerHTML;
+    var op2 = document.createElement('option');
+    op2.innerHTML = 'Action';
+    op2.value = op2.innerHTML;
+    var op3 = document.createElement('option');
+    op3.innerHTML = 'Horror';
+    op3.value = op3.innerHTML;
+    var op4 = document.createElement('option');
+    op4.innerHTML = 'Romantic Comedy';
+    op4.value = op4.innerHTML;
+    var op5 = document.createElement('option');
+    op5.innerHTML = 'Drama';
+    op5.value = op5.innerHTML;
+    var op6 = document.createElement('option');
+    op6.innerHTML = 'Adventure';
+    op6.value = op6.innerHTML;
+    var op7 = document.createElement('option');
+    op7.innerHTML = 'Thriller/Suspense';
+    op7.value = op7.innerHTML;
+    var op8 = document.createElement('option');
+    op8.innerHTML = 'Musical';
+    op8.value = op8.innerHTML;
+    var op9 = document.createElement('option');
+    op9.innerHTML = 'Western';
+    op9.value = op9.innerHTML;
+
+    filterelem.appendChild(op0);
+    filterelem.appendChild(op1);
+    filterelem.appendChild(op2);
+    filterelem.appendChild(op3);
+    filterelem.appendChild(op4);
+    filterelem.appendChild(op5);
+    filterelem.appendChild(op6);
+    filterelem.appendChild(op7);
+    filterelem.appendChild(op8);
+    filterelem.appendChild(op9);
+
+//create button
+    var filterbutton = document.createElement('button');
+    filterbutton.innerHTML = 'Select A Genre';
+    filterbutton.addEventListener('click',filterGenre);
+
+    a = document.body.appendChild(filterdiv);
+    a.appendChild(filterelem);
+    a.appendChild(filterbutton);
+
+    function filterGenre() {
+        var selected = document.getElementById('filterelem').value;
+        d3.json(DATA_PATH, function(error, data) {
+            if (error) throw error;
+
+            var filtered_data = d3.nest()
+                .key(function (d) {
+                    return d["Director"];
+                })
+                .entries(data)
+                .map((d) => (
+                    {
+                        "Director": d.key,
+                        "Avg Rating": d3.mean(d.values, (i) => i["IMDB Rating"]),
+                        "Avg Budget": d3.mean(d.values, (i) => i["Production Budget"]),
+                        "Count": d.values.length,
+                        "values": d.values
+                    }))
+                .filter(function(d) {
+                    if (selected == "All Genre") return true;
+                    for (var k = 0; k < d.values.length; k++) {
+                        if (d.values[k]["Major Genre"] == selected)
+                            return true;
+                    }
+                    return false;
+                })
+            Bars(filtered_data);
+        });
+    }
+
+//sort data
+    function sortBars() {
+        var selected = document.getElementById('selectelem').value;
+
+        d3.json(DATA_PATH, function(error, data) {
+            if (error) throw error;
+
+            var sorted_data = d3.nest()
+                .key(function (d) {
+                    return d["Director"];
+                })
+                .entries(data)
+                .map((d) => (
+                    {
+                        "Director": d.key,
+                        "Avg Rating": d3.mean(d.values, (i) => i["IMDB Rating"]),
+                        "Avg Budget": d3.mean(d.values, (i) => i["Production Budget"]),
+                        "Count": d.values.length,
+                        "values": d.values
+                    })).sort(function (x, y) {
+                        if (selected == 'Director') return d3.ascending(x.Director, y.Director);
+                        else if (selected == 'Avg Rating') return d3.ascending(-x['Avg Rating'], -y['Avg Rating']);
+                        else if (selected == 'Avg Budget') return d3.ascending(-x['Avg Budget'], -y['Avg Budget']);
+                        else if (selected == 'Count') return d3.ascending(-x['Count'], -y['Count']);
+                        else console.log('something wrong');
+                });
+            Bars(sorted_data);
+        });
+    }
+
+
+// data from outside json
+	d3.json(DATA_PATH, function(error, data) {
+		if (error) throw error;
+
+		
+    var nested_data = d3.nest()
+        .key(function(d) {return d["Director"]; })
+        .entries(data)
+        .map((d) =>  (
+        {
+            "Director": d.key,
+            "Avg Rating": d3.mean(d.values, (i) => i["IMDB Rating"]),
+            "Avg Budget": d3.mean(d.values, (i) => i["Production Budget"]),
+            "Count": d.values.length,
+            "values": d.values
+        }));
+
+    Bars(nested_data)
+
+
+		
+	})
+
+
+
+
+
+</script>
+</body>
+</html>
